@@ -1,10 +1,11 @@
+# .github/workflows/update-star-history.yml
 name: Update Star History in README
 
 on:
   schedule:
     - cron: '0 0 * * *' # 每天 UTC 時間午夜運行
   push:
-    branches: [ "main" ] # 您額外添加的推送觸發器
+    branches: [ "main" ]
   workflow_dispatch: # 允許手動觸發
 
 permissions:
@@ -20,7 +21,6 @@ jobs:
       - name: Fetch all repositories for spectre-pro # 請將 spectre-pro 替換為您的 GitHub 使用者名稱
         id: get_repos
         run: |
-          # 這裡假設您的使用者名稱是 spectre-pro
           repos=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/users/spectre-pro/repos?per_page=100&sort=pushed&direction=desc" | \
             jq -r '.[] | select(.fork == false and .archived == false) | .full_name' | \
@@ -29,10 +29,9 @@ jobs:
 
       - name: Update Star History section in README.md
         run: |
-          README_FILE="README.md" # 在此步驟範圍內定義 README_FILE
+          README_FILE="README.md"
           NEW_REPOS="${{ steps.get_repos.outputs.repos_list }}"
           
-          # 檢查 NEW_REPOS 是否為空，以防止創建不正確的 URL
           if [ -z "$NEW_REPOS" ]; then
             echo "No repositories found. Exiting."
             exit 0
@@ -42,9 +41,14 @@ jobs:
           RAW_STAR_HISTORY_URL_DARK="https://api.star-history.com/svg?repos=${NEW_REPOS}&type=Date&theme=dark"
           RAW_STAR_HISTORY_URL_LIGHT="https://api.star-history.com/svg?repos=${NEW_REPOS}&type=Date"
 
+          # **新修正：將變數匯出為環境變數，以便 Perl 腳本能夠讀取其值**
+          export NEW_DARK_URL="$RAW_STAR_HISTORY_URL_DARK"
+          export NEW_LIGHT_URL="$RAW_STAR_HISTORY_URL_LIGHT"
+
           # 使用 perl 進行多行替換
           perl -i -0777 -pe '
             BEGIN {
+              # 從匯出的環境變數中獲取 URL 值
               my $dark_url = $ENV{NEW_DARK_URL};
               my $light_url = $ENV{NEW_LIGHT_URL};
 
@@ -58,16 +62,13 @@ jobs:
             # 查找並替換現有的 <picture> 區塊
             s!<picture>.*?<\/picture>!$new_picture_block!s;
           ' "$README_FILE"
-        env: # 將 URL 作為環境變量傳遞給 Perl 腳本
-          NEW_DARK_URL: "$RAW_STAR_HISTORY_URL_DARK"
-          NEW_LIGHT_URL: "$RAW_STAR_HISTORY_URL_LIGHT"
+          # 這裡移除了原本的 'env:' 區塊，因為變數已經在 run 腳本內部匯出。
           
       - name: Commit changes
         run: |
-          README_FILE="README.md" # **重點：在此步驟範圍內重新定義 README_FILE**
+          README_FILE="README.md" # **重要：在此步驟範圍內重新定義 README_FILE**
 
           # 使用 git diff 檢查 README.md 是否有變化
-          # git diff --quiet 返回 0 表示沒有變化，返回 1 表示有變化
           if git diff --quiet "$README_FILE"; then
             echo "No changes detected in README.md."
           else
