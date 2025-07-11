@@ -1,0 +1,58 @@
+# .github/workflows/update-star-history.yml
+name: Update Star History in README
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # 每天 UTC 時間午夜運行
+  workflow_dispatch: # 允許手動觸發
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Fetch all repositories for spectre-pro
+        id: get_repos
+        run: |
+          repos=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/users/spectre-pro/repos?per_page=100&sort=pushed&direction=desc" | \
+            jq -r '.[] | select(.fork == false and .archived == false) | .full_name' | \
+            tr '\n' ',')
+          echo "::set-output name=repos_list::${repos%,}"
+
+      - name: Read current README.md and update Star History
+        run: |
+          README_FILE="README.md"
+          NEW_REPOS="${{ steps.get_repos.outputs.repos_list }}"
+          
+          if [ -z "$NEW_REPOS" ]; then
+            echo "No repositories found. Exiting."
+            exit 0
+          fi
+
+          NEW_STAR_HISTORY_URL_DARK="https://api.star-history.com/svg?repos=${NEW_REPOS}&type=Date&theme=dark"
+          NEW_STAR_HISTORY_URL_LIGHT="https://api.star-history.com/svg?repos=${NEW_REPOS}&type=Date"
+
+          CURRENT_README=$(cat "$README_FILE")
+
+          UPDATED_README=$(echo "$CURRENT_README" | sed -E \
+            -e 's|(<source media="\(prefers-color-scheme: dark\)" srcset=")[^"]+(" />)|\1'"$NEW_STAR_HISTORY_URL_DARK"'\2|g' \
+            -e 's|(<source media="\(prefers-color-scheme: light\)" srcset=")[^"]+(" />)|\1'"$NEW_STAR_HISTORY_URL_LIGHT"'\2|g' \
+            -e 's|(<img alt="Star History Chart" src=")[^"]+(" />)|\1'"$NEW_STAR_HISTORY_URL_LIGHT"'\2|g')
+
+          echo "$UPDATED_README" > "$README_FILE"
+
+          git diff --quiet || CHANGED=true
+          if [ "$CHANGED" = true ]; then
+            echo "README.md has been updated."
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add "$README_FILE"
+            git commit -m "🤖 Update Star History for new repositories"
+            git push
+          else
+            echo "No changes detected in README.md."
+          fi
+
