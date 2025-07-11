@@ -6,9 +6,9 @@ and this is my [web](https://spectre-pro.github.io)
 ## Star History
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=spectre-pro/spectre-pro.github.io&type=Date&theme=dark" />
-  <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=spectre-pro/spectre-pro.github.io&type=Date" />
-  <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=spectre-pro/spectre-pro.github.io&type=Date" />
+ <source media="(prefers-color-scheme: dark)" srcset="$RAW_STAR_HISTORY_URL_DARK" />
+ <source media="(prefers-color-scheme: light)" srcset="$RAW_STAR_HISTORY_URL_LIGHT" />
+ <img alt="Star History Chart" src="$RAW_STAR_HISTORY_URL_LIGHT" />
 </picture>
 <!--
 **SPECTRE-PRO/spectre-pro** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
