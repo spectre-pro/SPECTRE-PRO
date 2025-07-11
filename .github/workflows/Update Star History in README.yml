@@ -1,13 +1,16 @@
+# .github/workflows/update-star-history.yml
 name: Update Star History in README
 
 on:
   schedule:
-    - cron: '0 0 * * *'
-  workflow_dispatch:
- 
+    - cron: '0 0 * * *' # 每天 UTC 時間午夜運行
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: # 允許手動觸發
+
 permissions:
-  contents: write
-  
+  contents: write # 授予寫入儲存庫內容的權限
+
 jobs:
   update-readme:
     runs-on: ubuntu-latest
@@ -15,37 +18,69 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Fetch all repositories for spectre-pro
+      - name: Fetch all repositories for spectre-pro # 請將 spectre-pro 替換為您的 GitHub 使用者名稱
         id: get_repos
         run: |
+          # 這裡假設您的使用者名稱是 spectre-pro
           repos=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/users/spectre-pro/repos?per_page=100&sort=pushed&direction=desc" | \
             jq -r '.[] | select(.fork == false and .archived == false) | .full_name' | \
             tr '\n' ',')
-          echo "::set-output name=repos_list::${repos%,}"
+          echo "::set-output name=repos_list::${repos%,}" # 移除末尾的逗號
 
-      - name: Read current README.md and update Star History
+      - name: Update Star History section in README.md
         run: |
           README_FILE="README.md"
           NEW_REPOS="${{ steps.get_repos.outputs.repos_list }}"
           
+          # 檢查 NEW_REPOS 是否為空，以防止創建不正確的 URL
           if [ -z "$NEW_REPOS" ]; then
             echo "No repositories found. Exiting."
             exit 0
           fi
 
-          NEW_STAR_HISTORY_URL_DARK="https://api.star-history.com/svg?repos=${NEW_REPOS}&type=Date&theme=dark"
-          NEW_STAR_HISTORY_URL_LIGHT="https://api.star-history.com/svg?repos=${NEW_REPOS}&type=Date"
+          # 構建原始的 Star History URL
+          RAW_STAR_HISTORY_URL_DARK="https://api.star-history.com/svg?repos=${NEW_REPOS}&type=Date&theme=dark"
+          RAW_STAR_HISTORY_URL_LIGHT="https://api.star-history.com/svg?repos=${NEW_REPOS}&type=Date"
 
-          CURRENT_README=$(cat "$README_FILE")
+          # 使用 perl 進行多行替換
+          # `perl -i -0777 -pe` 表示：
+          #   -i: In-place edit (直接修改文件)
+          #   -0777: Slurp mode (將整個文件讀取為單個字符串，以便處理多行匹配)
+          #   -p: Loop through input, print lines (在每次循環後打印 $_ 的內容)
+          #   -e: Execute command (執行後面的 Perl 腳本)
+          # Perl 的 `s///s` 替換：
+          #   - `s!` 表示使用 `!` 作為分隔符 (而不是預設的 `/`)，這樣 URL 中的 `/` 就不需要額外轉義。
+          #   - `<picture>.*?<\/picture>` 匹配從 `<picture>` 開始到最近的 `</picture>` 結束的所有內容。
+          #     - `.*?` 是非貪婪匹配，確保只匹配單個 `<picture>` 區塊。
+          #   - `s` 修飾符允許 `.` 匹配新行。
 
-          UPDATED_README=$(echo "$CURRENT_README" | sed -E \
-            -e 's|(<source media="\(prefers-color-scheme: dark\)" srcset=")[^"]+(" />)|\1'"$NEW_STAR_HISTORY_URL_DARK"'\2|g' \
-            -e 's|(<source media="\(prefers-color-scheme: light\)" srcset=")[^"]+(" />)|\1'"$NEW_STAR_HISTORY_URL_LIGHT"'\2|g' \
-            -e 's|(<img alt="Star History Chart" src=")[^"]+(" />)|\1'"$NEW_STAR_HISTORY_URL_LIGHT"'\2|g')
+          # 在 Perl 腳本中，需要明確地將 shell 變量作為環境變量傳遞，並在 Perl 中引用。
+          # 此外，Perl 的替換字符串中的 `&` 也有特殊含義（表示整個匹配的字符串），需要額外轉義。
+          # 我們這裡轉義 URL 中可能出現的 `&` 和替換定界符 `!`
+          perl -i -0777 -pe '
+            BEGIN {
+              # 從環境變量獲取 URL
+              my $dark_url = $ENV{NEW_DARK_URL};
+              my $light_url = $ENV{NEW_LIGHT_URL};
 
-          echo "$UPDATED_README" > "$README_FILE"
+              # 對 URL 中的特殊字符 (`&` 和替換定界符 `!`) 進行轉義，
+              # 以免它們在 Perl 的替換字符串中被錯誤解釋。
+              $dark_url =~ s/([&!])/\\$1/g;
+              $light_url =~ s/([&!])/\\$1/g;
 
+              # 構建新的 <picture> 區塊內容。注意雙引號和換行符。
+              $new_picture_block = "<picture>\n <source media=\"(prefers-color-scheme: dark)\" srcset=\"$dark_url\" />\n <source media=\"(prefers-color-scheme: light)\" srcset=\"$light_url\" />\n <img alt=\"Star History Chart\" src=\"$light_url\" />\n</picture>";
+            }
+            # 查找並替換現有的 <picture> 區塊
+            s!<picture>.*?<\/picture>!$new_picture_block!s;
+          ' "$README_FILE"
+        env: # 將 URL 作為環境變量傳遞給 Perl 腳本
+          NEW_DARK_URL: "$RAW_STAR_HISTORY_URL_DARK"
+          NEW_LIGHT_URL: "$RAW_STAR_HISTORY_URL_LIGHT"
+          
+      - name: Commit changes
+        run: |
           git diff --quiet || CHANGED=true
           if [ "$CHANGED" = true ]; then
             echo "README.md has been updated."
@@ -57,4 +92,3 @@ jobs:
           else
             echo "No changes detected in README.md."
           fi
-
