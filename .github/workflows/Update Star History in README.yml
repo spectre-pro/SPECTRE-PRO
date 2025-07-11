@@ -1,11 +1,10 @@
-# .github/workflows/update-star-history.yml
 name: Update Star History in README
 
 on:
   schedule:
     - cron: '0 0 * * *' # 每天 UTC 時間午夜運行
   push:
-    branches: [ "main" ]
+    branches: [ "main" ] # 您額外添加的推送觸發器
   workflow_dispatch: # 允許手動觸發
 
 permissions:
@@ -30,7 +29,7 @@ jobs:
 
       - name: Update Star History section in README.md
         run: |
-          README_FILE="README.md"
+          README_FILE="README.md" # 在此步驟範圍內定義 README_FILE
           NEW_REPOS="${{ steps.get_repos.outputs.repos_list }}"
           
           # 檢查 NEW_REPOS 是否為空，以防止創建不正確的 URL
@@ -44,32 +43,16 @@ jobs:
           RAW_STAR_HISTORY_URL_LIGHT="https://api.star-history.com/svg?repos=${NEW_REPOS}&type=Date"
 
           # 使用 perl 進行多行替換
-          # `perl -i -0777 -pe` 表示：
-          #   -i: In-place edit (直接修改文件)
-          #   -0777: Slurp mode (將整個文件讀取為單個字符串，以便處理多行匹配)
-          #   -p: Loop through input, print lines (在每次循環後打印 $_ 的內容)
-          #   -e: Execute command (執行後面的 Perl 腳本)
-          # Perl 的 `s///s` 替換：
-          #   - `s!` 表示使用 `!` 作為分隔符 (而不是預設的 `/`)，這樣 URL 中的 `/` 就不需要額外轉義。
-          #   - `<picture>.*?<\/picture>` 匹配從 `<picture>` 開始到最近的 `</picture>` 結束的所有內容。
-          #     - `.*?` 是非貪婪匹配，確保只匹配單個 `<picture>` 區塊。
-          #   - `s` 修飾符允許 `.` 匹配新行。
-
-          # 在 Perl 腳本中，需要明確地將 shell 變量作為環境變量傳遞，並在 Perl 中引用。
-          # 此外，Perl 的替換字符串中的 `&` 也有特殊含義（表示整個匹配的字符串），需要額外轉義。
-          # 我們這裡轉義 URL 中可能出現的 `&` 和替換定界符 `!`
           perl -i -0777 -pe '
             BEGIN {
-              # 從環境變量獲取 URL
               my $dark_url = $ENV{NEW_DARK_URL};
               my $light_url = $ENV{NEW_LIGHT_URL};
 
-              # 對 URL 中的特殊字符 (`&` 和替換定界符 `!`) 進行轉義，
-              # 以免它們在 Perl 的替換字符串中被錯誤解釋。
+              # 對 URL 中的特殊字符 (`&` 和替換定界符 `!`) 進行轉義
               $dark_url =~ s/([&!])/\\$1/g;
               $light_url =~ s/([&!])/\\$1/g;
 
-              # 構建新的 <picture> 區塊內容。注意雙引號和換行符。
+              # 構建新的 <picture> 區塊內容。
               $new_picture_block = "<picture>\n <source media=\"(prefers-color-scheme: dark)\" srcset=\"$dark_url\" />\n <source media=\"(prefers-color-scheme: light)\" srcset=\"$light_url\" />\n <img alt=\"Star History Chart\" src=\"$light_url\" />\n</picture>";
             }
             # 查找並替換現有的 <picture> 區塊
@@ -81,14 +64,17 @@ jobs:
           
       - name: Commit changes
         run: |
-          git diff --quiet || CHANGED=true
-          if [ "$CHANGED" = true ]; then
-            echo "README.md has been updated."
+          README_FILE="README.md" # **重點：在此步驟範圍內重新定義 README_FILE**
+
+          # 使用 git diff 檢查 README.md 是否有變化
+          # git diff --quiet 返回 0 表示沒有變化，返回 1 表示有變化
+          if git diff --quiet "$README_FILE"; then
+            echo "No changes detected in README.md."
+          else
+            echo "README.md has been updated. Committing changes."
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add "$README_FILE"
             git commit -m "🤖 Update Star History for new repositories"
             git push
-          else
-            echo "No changes detected in README.md."
           fi
