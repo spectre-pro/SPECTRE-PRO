@@ -3,6 +3,14 @@
 You can send me the Email 0spectrep0@gmail.com
 and this is my [web](https://spectre-pro.github.io)
 
+## Star History
+
+
+<picture>
+ <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=spectre-pro/gemini-vpn,spectre-pro/docker-hugo-run&type=Date&theme=dark" />
+ <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=spectre-pro/gemini-vpn,spectre-pro/docker-hugo-run&type=Date" />
+ <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=spectre-pro/gemini-vpn,spectre-pro/docker-hugo-run&type=Date" />
+</picture>
 <!--
 **SPECTRE-PRO/spectre-pro** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
 
