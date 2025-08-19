@@ -1,6 +1,7 @@
 ## Hello  
 You can send me the Email 0spectrep0@gmail.com  
-and this is my [web](https://spectre-pro.github.io)
+and this is my [web](https://spectre-pro.github.io)  
+I also have a [YouTube Channel](https://www.youtube.com/@spectre_pro) and [BiliBili](https://b23.tv/teXIVBB)
 <!--
 **SPECTRE-PRO/spectre-pro** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
 
