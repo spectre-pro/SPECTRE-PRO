@@ -1,4 +1,4 @@
-## Hello  
+## 不要定太小的目標，也不要抱太大的期望
 You can send the email to me 0spectrep0@gmail.com  
 And can know more about at
 - [Website](https://spectre-pro.github.io)
